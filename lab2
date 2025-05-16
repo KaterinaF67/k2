@@ -1,0 +1,82 @@
+import numpy as np
+def generate_data(m=1_000_000, n=30):
+    X = np.random.uniform(-1.0, 1.0, (m, n))
+    w_true = np.random.uniform(-0.5, 0.5, n)
+    b_true = np.random.uniform(-0.5, 0.5)
+
+    z = X @ w_true + b_true
+    oz = sigmoid(z)
+    y = np.round(oz)
+
+    noise = np.random.rand(m) < 0.01
+    y[noise] = 1 - y[noise]
+
+    ind = round(0.8 * m)
+    X_train, X_test = X[:ind], X[ind:]
+    y_learn, y_test = y[:ind], y[ind:]
+    return X_train, X_test, y_learn, y_test
+def sigmoid(z):
+    return 1 / (1 + np.exp(-z))
+def f_loss(y_true, y_real):
+    y_real[y_real == 0] = 0.0000001
+    y_real[y_real == 1] = 0.9999999
+    return -np.mean(y_true * np.log(y_real) + (1 - y_true) * np.log(1 - y_real))
+
+
+def learn(X, y, times=100, alpha=0.1, part=1000):
+    m, n = X.shape
+    w = np.random.uniform(-10.0, 10.0, n)
+    b = 0.0
+    loss_history = []
+
+    for time in range(times):
+        for i in range(0, m, part):
+            X_part = X[i:i + part]
+            y_part = y[i:i + part]
+
+            z = X_part @ w + b
+            y_real = sigmoid(z)
+
+            error = y_real - y_part
+            grad_w = (error @ X_part) / len(y_part)
+            grad_b = np.mean(error)
+
+            w -= alpha * grad_w
+            b -= alpha * grad_b
+        loss = f_loss(y, sigmoid(X @ w + b))
+        loss_history.append(loss)
+        if time % 10 == 0:
+            print("Step " + str(time) + ": Loss = " + str(round(loss, 5)))
+
+    return w, b, loss_history
+
+
+def accuracy(X, y, w, b):
+    y_real = sigmoid(X @ w + b) >= 0.5
+    return np.mean(y_real == y)
+
+m = 1_000_000
+n = 30
+times = 100
+alpha = 0.1
+part = 1000
+
+X_train, X_test, y_train, y_test = generate_data(m, n)
+
+print("Обучение модели")
+w, b, loss_history = learn(X_train, y_train, times, alpha, part)
+
+train_acc = accuracy(X_train, y_train, w, b)
+test_acc = accuracy(X_test, y_test, w, b)
+print("Точность на обучении:"+ str(round(train_acc * 100, 5)))
+print("Точность на тесте:" + str(round(test_acc * 100, 5)))
+
+import matplotlib.pyplot as plt
+
+plt.plot(loss_history, label='Loss')
+plt.xlabel('Times')
+plt.ylabel('Loss')
+plt.title('Функция ошибки')
+plt.grid(True)
+plt.show()
+
