@@ -1,0 +1,126 @@
+import numpy as np
+class Qubit:
+    def __init__(self, state=None):
+        if state is None:
+            self.state = np.array([1, 0], dtype=complex)
+        else:
+            self.state = np.array(state, dtype=complex)
+            norm = np.sqrt(np.sum(np.abs(state) ** 2))
+            if not np.isclose(norm, 0):
+                self.state = state / norm
+            else:
+                self.state = state
+
+    def gate(self, gate):
+        self.state = gate @ self.state
+
+
+X_GATE = np.array([[0, 1],[1, 0]], dtype=complex)
+
+Y_GATE = np.array([[0, -1j],[1j, 0]], dtype=complex)
+
+Z_GATE = np.array([[1, 0],[0, -1]], dtype=complex)
+
+H_GATE = np.array([[1, 1], [1, -1]], dtype=complex) / np.sqrt(2)
+def CNOT_GATE(qubit_control, qubit_target):
+    state = np.kron(qubit_control.state, qubit_target.state)
+
+    CNOT = np.array([[1, 0, 0, 0],
+                            [0, 1, 0, 0],
+                            [0, 0, 0, 1],
+                            [0, 0, 1, 0]], dtype=complex)
+
+    new_state = CNOT @ state
+    return new_state
+
+def oracle1():
+    return np.kron(np.eye(4, dtype=complex), X_GATE)
+
+def oracle_balanced():
+    U = np.eye(8, dtype=complex)
+    for x in range(4):
+        x0 = x // 2
+        x1 = x % 2
+        if x0!=x1:
+            U[[x * 2, x * 2 + 1]] = U[[x * 2 + 1, x * 2]]
+
+    return U
+
+
+def grover_oracle():
+    U = np.eye(4, dtype=complex)
+    for x in range(4):
+        x0 = x // 2
+        x1 = x % 2
+        if x0 == 1 and x1 == 1:
+            U[x, x] = -1
+    return U
+def diffusion_operator(count=2):
+    N = 2 ** count
+    s = np.ones((N, 1), dtype=complex) / np.sqrt(N)
+    return 2 * (s @ s.conjugate().T) - np.eye(N, dtype=complex)
+def grover_algorithm():
+    N = 4
+    state = np.ones((N, 1), dtype=complex) / np.sqrt(N)
+
+    U_oracle = grover_oracle()
+    U_diffusion = diffusion_operator(count=2)
+    state = U_oracle @ state
+    state = U_diffusion @ state
+    return state
+def measure_probabilities(state):
+    probabilities = np.abs(state.flatten()) ** 2
+    return probabilities
+
+
+
+if __name__ == "__main__":
+    print("1. Квантовые гейты ")
+
+    qubit = Qubit()
+    print("Начальное состояние кубита |0> ", qubit.state)
+
+    qubit.gate(X_GATE)
+    print("После применения X-гейта:", qubit.state)
+
+    qubit = Qubit()
+    qubit.gate(Y_GATE)
+    print("После применения Y-гейта:", qubit.state)
+
+    qubit = Qubit()
+    qubit.gate(Z_GATE)
+    print("После применения Z-гейта:", qubit.state)
+
+    qubit = Qubit()
+    qubit.gate(H_GATE)
+    print("После применения H-гейта:", qubit.state)
+
+    print("CNOT")
+    q_control = Qubit([0, 1])
+    q_target = Qubit()
+    print("Управляющий кубит:", q_control.state)
+    print("Целевой кубит:", q_target.state)
+    two_qubit_state = np.kron(q_control.state, q_target.state)
+    print("Начальное состояние двух кубитов:", two_qubit_state)
+
+    new_state = CNOT_GATE(q_control, q_target)
+    print("Состояние после применения CNOT:", new_state)
+
+    print("2. Оракулы ")
+    U_const = oracle1()
+    print("Оракул для постоянной функции f(x)=1:")
+    print(U_const)
+
+    U_bal = oracle_balanced()
+    print("Оракул для сбалансированной функции f(x)= x0 ⊕ x1:")
+    print(U_bal)
+
+    print("3. Алгоритм Гровера")
+    result = grover_algorithm()
+    probs = measure_probabilities(result)
+
+    print("Итоговый вектор состояния после Гровера:")
+    print(result.flatten())
+
+    print("Вероятности измерения каждого состояния:")
+    print(probs)
